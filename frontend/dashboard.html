@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI-Sentinel — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #080b10;
+    --surface:  #0d1117;
+    --panel:    #111822;
+    --border:   #1e2d40;
+    --accent:   #00d4ff;
+    --accent2:  #ff4d6d;
+    --accent3:  #39ff8f;
+    --warn:     #ffb830;
+    --text:     #e2eaf4;
+    --muted:    #5a7a99;
+    --critical: #ff4d6d;
+    --high:     #ff8c42;
+    --moderate: #ffb830;
+    --low:      #39ff8f;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+    height: 60px;
+    background: rgba(8,11,16,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+
+  .backend-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .backend-badge:hover { border-color: var(--accent); color: var(--accent); }
+  .backend-badge.connected { border-color: var(--accent3); color: var(--accent3); }
+  .backend-badge.error { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── LAYOUT ── */
+  main {
+    position: relative; z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    display: flex; flex-direction: column; gap: 28px;
+  }
+
+  /* ── PAGE TITLE ── */
+  .page-title {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .page-title h1 {
+    font-size: 2rem; font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--text) 40%, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .page-title p { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── UPLOAD ZONE ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    background: var(--panel);
+    transition: border-color .3s, background .3s;
+    cursor: pointer;
+    position: relative;
+  }
+  .upload-zone.drag { border-color: var(--accent); background: rgba(0,212,255,0.04); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone .upload-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .upload-zone h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .upload-zone p { font-size: .8rem; color: var(--muted); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none; cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: .8rem; font-weight: 700;
+    letter-spacing: .05em;
+    transition: all .2s;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #fff; box-shadow: 0 0 20px var(--accent); }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .btn-outline:hover { background: rgba(0,212,255,.08); }
+
+  .upload-actions {
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap; margin-top: 16px; justify-content: center;
+  }
+  .file-name {
+    font-family: 'Space Mono', monospace;
+    font-size: .75rem; color: var(--accent3);
+    background: rgba(57,255,143,.08);
+    border: 1px solid rgba(57,255,143,.2);
+    padding: 4px 10px; border-radius: 4px;
+  }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    font-family: 'Space Mono', monospace;
+    font-size: .75rem;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border-left: 3px solid var(--accent);
+    background: rgba(0,212,255,.06);
+    color: var(--accent);
+    display: none;
+  }
+  .status-bar.visible { display: block; }
+  .status-bar.error { border-color: var(--accent2); background: rgba(255,77,109,.06); color: var(--accent2); }
+  .status-bar.success { border-color: var(--accent3); background: rgba(57,255,143,.06); color: var(--accent3); }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .kpi-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s, transform .2s;
+  }
+  .kpi-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .kpi-card::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-color, var(--accent));
+    opacity: .6;
+  }
+
+  .kpi-label {
+    font-size: .7rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem; font-weight: 700;
+    color: var(--card-color, var(--accent));
+    line-height: 1;
+  }
+  .kpi-sub { font-size: .75rem; color: var(--muted); margin-top: 6px; }
+
+  /* health score ring */
+  .health-ring-wrap {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .ring-svg { width: 80px; height: 80px; flex-shrink: 0; }
+  .ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
+  .ring-fg { fill: none; stroke-width: 6; stroke-linecap: round;
+    transform: rotate(-90deg); transform-origin: 50% 50%;
+    transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1), stroke .5s; }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 1rem; font-weight: 700;
+    letter-spacing: .03em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::before {
+    content: '';
+    display: block; width: 3px; height: 18px;
+    background: var(--accent); border-radius: 2px;
+  }
+
+  /* ── HEATMAP ── */
+  .heatmap-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  #heatmap {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    min-height: 120px;
+  }
+  .hm-file {
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: .6rem; text-align: center; padding: 4px;
+    overflow: hidden; word-break: break-all;
+    position: relative;
+  }
+  .hm-file:hover { transform: scale(1.08); z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,.6); }
+  .hm-tooltip {
+    position: fixed;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: .72rem;
+    pointer-events: none;
+    z-index: 999;
+    display: none;
+    min-width: 200px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+  .hm-tooltip.visible { display: block; }
+  .hm-tooltip .tt-name { font-size: .8rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .hm-tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); margin: 3px 0; }
+  .hm-tooltip .tt-val { color: var(--text); }
+
+  /* ── FILE TABLE ── */
+  .table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: rgba(0,212,255,.05); }
+  th {
+    padding: 12px 16px; text-align: left;
+    font-size: .68rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none;
+  }
+  th:hover { color: var(--accent); }
+  td {
+    padding: 11px 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: .75rem;
+    border-bottom: 1px solid rgba(30,45,64,.5);
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,212,255,.03); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px; border-radius: 3px;
+    font-size: .65rem; font-weight: 700;
+    letter-spacing: .05em;
+  }
+  .badge-critical { background: rgba(255,77,109,.15); color: var(--critical); border: 1px solid rgba(255,77,109,.3); }
+  .badge-high     { background: rgba(255,140,66,.15); color: var(--high);     border: 1px solid rgba(255,140,66,.3); }
+  .badge-moderate { background: rgba(255,184,48,.15); color: var(--moderate); border: 1px solid rgba(255,184,48,.3); }
+  .badge-low      { background: rgba(57,255,143,.15); color: var(--low);      border: 1px solid rgba(57,255,143,.3); }
+  .badge-hotspot  { background: rgba(0,212,255,.15);  color: var(--accent);   border: 1px solid rgba(0,212,255,.3); margin-left: 4px; }
+
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .score-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; max-width: 80px; }
+  .score-bar-fill { height: 100%; border-radius: 2px; transition: width .6s; }
+
+  /* ── ROADMAP ── */
+  .roadmap-list { display: flex; flex-direction: column; gap: 10px; }
+  .roadmap-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 16px;
+    transition: border-color .2s;
+  }
+  .roadmap-item:hover { border-color: var(--accent); }
+  .roadmap-rank {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.2rem; font-weight: 700;
+    color: var(--border);
+    min-width: 28px;
+  }
+  .roadmap-info { flex: 1; min-width: 0; }
+  .roadmap-filename {
+    font-family: 'Space Mono', monospace;
+    font-size: .8rem; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .roadmap-meta { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+  .roadmap-tdc {
+    font-family: 'Space Mono', monospace;
+    font-size: .85rem; font-weight: 700;
+    color: var(--warn); white-space: nowrap;
+  }
+  .roadmap-action {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: .78rem;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+  }
+  .roadmap-action:hover {
+    background: var(--surface);
+    border-color: var(--accent);
+  }
+  .roadmap-results {
+    margin-top: 20px;
+    padding: 18px;
+    border-radius: 12px;
+    background: rgba(0,0,0,.02);
+    border: 1px solid var(--border);
+    white-space: pre-wrap;
+    font-family: 'Space Mono', monospace;
+    font-size: .82rem;
+    color: var(--text);
+  }
+  .roadmap-message {
+    margin: 24px 0 0;
+    padding: 24px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty .empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: .4; }
+  .empty p { font-size: .85rem; }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .filter-btn {
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font-family: 'Space Mono', monospace;
+    font-size: .7rem; cursor: pointer;
+    color: var(--muted);
+    transition: all .15s;
+  }
+  .filter-btn.active { color: #000; font-weight: 700; }
+  .filter-btn.all.active    { background: var(--accent);    border-color: var(--accent); }
+  .filter-btn.critical.active { background: var(--critical); border-color: var(--critical); }
+  .filter-btn.high.active   { background: var(--high);     border-color: var(--high); }
+  .filter-btn.moderate.active { background: var(--moderate); border-color: var(--moderate); }
+  .filter-btn.low.active    { background: var(--low);      border-color: var(--low); }
+  .filter-btn:not(.active):hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── PROGRESS ── */
+  .progress-wrap {
+    height: 3px; background: var(--border); border-radius: 2px;
+    overflow: hidden; margin-top: 8px; display: none;
+  }
+  .progress-wrap.visible { display: block; }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 2px;
+    transition: width .3s;
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer {
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.4); }
+    100% { filter: brightness(1); }
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    font-size: .72rem; color: var(--muted);
+    margin-top: 12px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .tab-btn {
+    padding: 10px 20px;
+    background: transparent; border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: .85rem; font-weight: 600;
+    color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    margin-bottom: -1px;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── REPORT PANEL ── */
+  .report-meta {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px;
+    font-family: 'Space Mono', monospace; font-size: .78rem;
+    margin-bottom: 20px;
+  }
+  .report-meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .report-meta-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+  .report-meta-value { color: var(--text); }
+
+  /* ── FINANCIAL ── */
+  .financial-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;
+    margin-bottom: 20px;
+  }
+  .fin-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px;
+  }
+  .fin-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 8px; }
+  .fin-value { font-family: 'Space Mono', monospace; font-size: 1.6rem; font-weight: 700; color: var(--warn); }
+  .fin-sub { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .slider-row label { font-size: .8rem; color: var(--muted); min-width: 120px; }
+  input[type=range] {
+    -webkit-appearance: none; height: 4px;
+    background: var(--border); border-radius: 2px; flex: 1; max-width: 200px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+  .slider-val {
+    font-family: 'Space Mono', monospace; font-size: .8rem;
+    color: var(--accent); min-width: 50px;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* responsive */
+  @media (max-width: 600px) {
+    header { padding: 0 16px; }
+    main { padding: 16px; }
+    .page-title h1 { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOOLTIP -->
+<div class="hm-tooltip" id="tooltip">
+  <div class="tt-name" id="tt-name">filename.py</div>
+  <div class="tt-row"><span>Risk Score</span><span class="tt-val" id="tt-score">—</span></div>
+  <div class="tt-row"><span>Cyclomatic CC</span><span class="tt-val" id="tt-cc">—</span></div>
+  <div class="tt-row"><span>Lines of Code</span><span class="tt-val" id="tt-loc">—</span></div>
+  <div class="tt-row"><span>Churn (90d)</span><span class="tt-val" id="tt-churn">—</span></div>
+  <div class="tt-row"><span>Est. TDC/yr</span><span class="tt-val" id="tt-tdc">—</span></div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    AI-SENTINEL
+  </div>
+  <div class="header-right">
+    <span class="backend-badge" id="backend-badge" onclick="pingBackend()">● CONNECTING…</span>
+    <input id="backend-url" type="text" value="http://127.0.0.1:8000"
+      style="background:var(--panel);border:1px solid var(--border);color:var(--muted);
+             padding:4px 10px;border-radius:4px;font-family:'Space Mono',monospace;font-size:.7rem;width:200px;"
+      placeholder="http://127.0.0.1:8000"/>
+  </div>
+</header>
+
+<main>
+
+  <!-- TITLE -->
+  <div class="page-title">
+    <div>
+      <h1>Code Health Dashboard</h1>
+      <p>Intelligent Technical Debt &amp; Code Quality Analyzer</p>
+    </div>
+    <button class="btn btn-outline" onclick="loadLatestReport()">↻ Refresh Report</button>
+  </div>
+
+  <!-- TABS -->
+  <div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('upload',this)">Upload &amp; Analyze</button>
+      <button class="tab-btn" onclick="switchTab('dashboard',this)">Health Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('roadmap',this)">Refactoring Roadmap</button>
+      <button class="tab-btn" onclick="switchTab('financial',this)">Financial Report</button>
+    </div>
+
+    <!-- TAB: UPLOAD -->
+    <div class="tab-panel active" id="tab-upload">
+      <div class="upload-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".zip" onchange="fileSelected(this)"/>
+        <div class="upload-icon">📦</div>
+        <h3>Drop your Python repository here</h3>
+        <p>or click to browse — accepts .zip files only</p>
+      </div>
+      <div class="upload-actions">
+        <span class="file-name" id="file-label" style="display:none"></span>
+        <button class="btn btn-primary" id="upload-btn" onclick="uploadRepo()" disabled>
+          ⚡ Analyze Repository
+        </button>
+      </div>
+      <div class="progress-wrap" id="progress-wrap"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="status-bar" id="status-bar"></div>
+    </div>
+
+    <!-- TAB: DASHBOARD -->
+    <div class="tab-panel" id="tab-dashboard">
+      <!-- KPI Row -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card" style="--card-color:var(--accent)">
+          <div class="kpi-label">Project Health Score</div>
+          <div class="health-ring-wrap">
+            <svg class="ring-svg" viewBox="0 0 80 80">
+              <circle class="ring-bg" cx="40" cy="40" r="34"/>
+              <circle class="ring-fg" id="health-ring" cx="40" cy="40" r="34"
+                stroke="var(--accent3)"
+                stroke-dasharray="213.6"
+                stroke-dashoffset="213.6"/>
+            </svg>
+            <div>
+              <div class="kpi-value" id="kpi-health" style="color:var(--accent3)">—</div>
+              <div class="kpi-sub" id="kpi-health-label">No data yet</div>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card" style="--card-color:var(--critical)">
+          <div class="kpi-label">Critical Files</div>
+          <div class="kpi-value" id="kpi-critical">—</div>
+          <div class="kpi-sub">Risk Score ≥ 75</div>
+        </div>
+        <div class="kpi-card" style="--card-color:var(--high)">
+          <div class="kpi-label">High Risk Files</div>
+          <div class="kpi-value" id="kpi-high">—</div>
+          <div class="kpi-sub">Risk Score 50–74</div>
+        </div>
+        <div class="kpi-card" style="--card-color:var(--low)">
+          <div class="kpi-label">Total Files</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <div class="kpi-sub">Python files analyzed</div>
+        </div>
+        <div class="kpi-card" style="--card-color:var(--warn)">
+          <div class="kpi-label">Total Debt Cost</div>
+          <div class="kpi-value" id="kpi-tdc">—</div>
+          <div class="kpi-sub">Estimated annual USD</div>
+        </div>
+      </div>
+
+      <!-- Heatmap -->
+      <div class="heatmap-container" style="margin-top:24px">
+        <div class="section-header">
+          <div class="section-title">Risk Heatmap</div>
+        </div>
+        <div id="heatmap">
+          <div class="empty">
+            <div class="empty-icon">🗺</div>
+            <p>Upload and analyze a repository to see the heatmap</p>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--critical)"></div> Critical (≥75)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--high)"></div> High (50–74)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--moderate)"></div> Moderate (25–49)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--low)"></div> Low (0–24)</div>
+        </div>
+      </div>
+
+      <!-- File Table -->
+      <div style="margin-top:24px">
+        <div class="section-header">
+          <div class="section-title">File Risk Table</div>
+        </div>
+        <div class="filter-bar" id="filter-bar">
+          <button class="filter-btn all active" onclick="filterFiles('all',this)">All</button>
+          <button class="filter-btn critical" onclick="filterFiles('critical',this)">Critical</button>
+          <button class="filter-btn high" onclick="filterFiles('high',this)">High</button>
+          <button class="filter-btn moderate" onclick="filterFiles('moderate',this)">Moderate</button>
+          <button class="filter-btn low" onclick="filterFiles('low',this)">Low</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th onclick="sortTable('filename')">File ↕</th>
+                <th onclick="sortTable('risk_score')">Risk Score ↕</th>
+                <th onclick="sortTable('tier')">Tier ↕</th>
+                <th onclick="sortTable('cyclomatic_complexity')">CC ↕</th>
+                <th onclick="sortTable('loc')">LoC ↕</th>
+                <th onclick="sortTable('churn_rate')">Churn ↕</th>
+                <th onclick="sortTable('tdc')">TDC/yr ↕</th>
+              </tr>
+            </thead>
+            <tbody id="file-table-body">
+              <tr><td colspan="7"><div class="empty"><div class="empty-icon">📂</div><p>No analysis data yet</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: ROADMAP -->
+    <div class="tab-panel" id="tab-roadmap">
+      <div class="section-header">
+        <div class="section-title">Prioritized Refactoring Roadmap</div>
+      </div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:20px">
+        Files ranked by effort-to-impact ratio. Fix these first for maximum ROI on maintenance time.
+      </p>
+      <div class="roadmap-list" id="roadmap-list">
+        <div class="empty"><div class="empty-icon">🗺</div><p>Run an analysis to generate the roadmap</p></div>
+      </div>
+      <div id="refactor-plan-container" style="margin-top:24px"></div>
+    </div>
+
+    <!-- TAB: FINANCIAL -->
+    <div class="tab-panel" id="tab-financial">
+      <div class="report-meta" id="report-meta" style="display:none"></div>
+
+      <div class="slider-row">
+        <label>Hourly Rate ($/hr)</label>
+        <input type="range" id="hourly-rate" min="25" max="200" value="75" oninput="recalcTDC()"/>
+        <span class="slider-val" id="hourly-rate-val">$75</span>
+      </div>
+      <div class="slider-row">
+        <label>Remediation Hours</label>
+        <input type="range" id="rem-hours" min="1" max="40" value="8" oninput="recalcTDC()"/>
+        <span class="slider-val" id="rem-hours-val">8 hrs</span>
+      </div>
+      <p style="font-size:.7rem;color:var(--muted);margin-bottom:20px;font-family:'Space Mono',monospace">
+        ⚠ Estimates based on user-provided parameters. Not a financial guarantee.
+        Formula: TDC = (Risk_Score / 100) × hourly_rate × remediation_hours
+      </p>
+
+      <div class="financial-grid" id="financial-grid">
+        <div class="fin-card">
+          <div class="fin-label">Total Annual Debt</div>
+          <div class="fin-value" id="fin-total">$—</div>
+          <div class="fin-sub">Across all files</div>
+        </div>
+        <div class="fin-card">
+          <div class="fin-label">Avg Cost per File</div>
+          <div class="fin-value" id="fin-avg">$—</div>
+          <div class="fin-sub">Mean TDC</div>
+        </div>
+        <div class="fin-card">
+          <div class="fin-label">Projected Savings</div>
+          <div class="fin-value" id="fin-savings" style="color:var(--accent3)">$—</div>
+          <div class="fin-sub">If top 5 files fixed</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Top 10 Most Expensive Files</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>File</th>
+              <th>Risk Score</th>
+              <th>Annual TDC</th>
+              <th>Tier</th>
+            </tr>
+          </thead>
+          <tbody id="fin-table-body">
+            <tr><td colspan="5"><div class="empty"><div class="empty-icon">💰</div><p>No data yet</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- end tabs -->
+</main>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+let state = {
+  files: [],      // FileResult objects
+  run: null,      // AnalysisRun object
+  filter: 'all',
+  sortKey: 'risk_score',
+  sortAsc: false,
+  hourlyRate: 75,
+  remHours: 8,
+  refactorPlan: null,
+  refactorStatus: '',
+};
+
+// ─── BACKEND URL ─────────────────────────────────────────
+function backendUrl() {
+  return document.getElementById('backend-url').value.replace(/\/$/, '');
+}
+
+// ─── PING ────────────────────────────────────────────────
+async function pingBackend() {
+  const badge = document.getElementById('backend-badge');
+  badge.textContent = '● CONNECTING…';
+  badge.className = 'backend-badge';
+  try {
+    const r = await fetch(backendUrl() + '/');
+    if (r.ok) {
+      badge.textContent = '● CONNECTED';
+      badge.className = 'backend-badge connected';
+    } else {
+      throw new Error(r.status);
+    }
+  } catch(e) {
+    badge.textContent = '● OFFLINE';
+    badge.className = 'backend-badge error';
+  }
+}
+
+// ─── TABS ────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── FILE SELECT ─────────────────────────────────────────
+let selectedFile = null;
+function fileSelected(input) {
+  selectedFile = input.files[0];
+  if (selectedFile) {
+    document.getElementById('file-label').textContent = selectedFile.name;
+    document.getElementById('file-label').style.display = 'inline-block';
+    document.getElementById('upload-btn').disabled = false;
+  }
+}
+
+// drag & drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.zip')) {
+    selectedFile = f;
+    document.getElementById('file-label').textContent = f.name;
+    document.getElementById('file-label').style.display = 'inline-block';
+    document.getElementById('upload-btn').disabled = false;
+  }
+});
+
+// ─── UPLOAD ──────────────────────────────────────────────
+async function uploadRepo() {
+  if (!selectedFile) return;
+  setStatus('Uploading repository…', 'info');
+  showProgress(true);
+  document.getElementById('upload-btn').disabled = true;
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+
+  try {
+    const r = await fetch(backendUrl() + '/analysis/upload', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) {
+      setStatus('Upload failed: ' + (data.detail || r.status), 'error');
+      showProgress(false);
+      document.getElementById('upload-btn').disabled = false;
+      return;
+    }
+    setStatus(`✓ Received (run_id: ${data.run_id}). Analysis queued. Refreshing report…`, 'success');
+    // simulate progress then load
+    animateProgress(() => {
+      loadLatestReport();
+      showProgress(false);
+      document.getElementById('upload-btn').disabled = false;
+    });
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+    showProgress(false);
+    document.getElementById('upload-btn').disabled = false;
+  }
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.className = 'status-bar visible' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
+}
+
+function showProgress(on) {
+  document.getElementById('progress-wrap').classList.toggle('visible', on);
+  if (on) document.getElementById('progress-fill').style.width = '0%';
+}
+
+function animateProgress(cb) {
+  let v = 0;
+  const iv = setInterval(() => {
+    v += Math.random() * 15;
+    if (v >= 95) { clearInterval(iv); document.getElementById('progress-fill').style.width = '100%'; setTimeout(cb, 300); return; }
+    document.getElementById('progress-fill').style.width = v + '%';
+  }, 200);
+}
+
+// ─── LOAD REPORT ─────────────────────────────────────────
+async function loadLatestReport() {
+  try {
+    const r = await fetch(backendUrl() + '/reports/latest');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.message === 'no runs yet') return;
+
+    // store minimal run info
+    state.run = data.run;
+
+    updateKPIs(data);
+    updateReportMeta(data);
+
+    // Load real file data into all dashboard tabs
+    if (data.files && data.files.length > 0) {
+      loadFileData(data.files);
+    }
+  } catch(e) { /* silent */ }
+}
+
+function updateKPIs(data) {
+  const run = data.run;
+  const health = run.health_score ?? null;
+
+  // health ring
+  const ringEl = document.getElementById('health-ring');
+  const valEl  = document.getElementById('kpi-health');
+  const lblEl  = document.getElementById('kpi-health-label');
+
+  if (health !== null) {
+    const circ = 213.6;
+    const offset = circ - (health / 100) * circ;
+    ringEl.style.strokeDashoffset = offset;
+    valEl.textContent = health;
+    const color = health >= 75 ? 'var(--accent3)' : health >= 50 ? 'var(--moderate)' : 'var(--critical)';
+    ringEl.style.stroke = color;
+    valEl.style.color = color;
+    lblEl.textContent = health >= 75 ? 'Healthy' : health >= 50 ? 'Needs Attention' : 'Critical';
+  } else {
+    valEl.textContent = 'N/A';
+    lblEl.textContent = run.repo_name || '—';
+  }
+
+  document.getElementById('kpi-total').textContent   = data.file_count ?? '—';
+  // Use real counts from the run object (populated by the backend after XGBoost scoring)
+  document.getElementById('kpi-critical').textContent = data.run.critical_count ?? '—';
+  document.getElementById('kpi-high').textContent     = data.run.high_count     ?? '—';
+  document.getElementById('kpi-tdc').textContent      = data.run.total_tdc ? '$' + data.run.total_tdc : '—';
+}
+
+function updateReportMeta(data) {
+  const el = document.getElementById('report-meta');
+  if (!data.run) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = `
+    <div class="report-meta-item"><span class="report-meta-label">Run ID</span><span class="report-meta-value">${data.run.id}</span></div>
+    <div class="report-meta-item"><span class="report-meta-label">Repository</span><span class="report-meta-value">${data.run.repo_name}</span></div>
+    <div class="report-meta-item"><span class="report-meta-label">Analyzed At</span><span class="report-meta-value">${new Date(data.run.created_at).toLocaleString()}</span></div>
+    <div class="report-meta-item"><span class="report-meta-label">Files</span><span class="report-meta-value">${data.file_count}</span></div>
+    <div class="report-meta-item"><span class="report-meta-label">Health Score</span><span class="report-meta-value">${data.run.health_score ?? 'N/A'}</span></div>
+  `;
+}
+
+// ─── FILE DATA (call when you have full file results) ─────
+function loadFileData(files) {
+  state.files = files.map(f => ({
+    ...f,
+    tier: scoreTier(f.risk_score),
+    tdc: calcFileTDC(f.risk_score),
+  }));
+  renderHeatmap();
+  renderFileTable();
+  renderRoadmap();
+  renderFinancial();
+}
+
+function scoreTier(s) {
+  if (s >= 75) return 'critical';
+  if (s >= 50) return 'high';
+  if (s >= 25) return 'moderate';
+  return 'low';
+}
+function tierColor(t) {
+  return { critical: 'var(--critical)', high: 'var(--high)', moderate: 'var(--moderate)', low: 'var(--low)' }[t] || 'var(--muted)';
+}
+
+// ─── HEATMAP ─────────────────────────────────────────────
+function renderHeatmap() {
+  const el = document.getElementById('heatmap');
+  if (!state.files.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🗺</div><p>No file data</p></div>';
+    return;
+  }
+  const maxLoc = Math.max(...state.files.map(f => f.loc || 1));
+  el.innerHTML = '';
+  state.files.forEach(f => {
+    const size = 40 + ((f.loc || 0) / maxLoc) * 80;
+    const d = document.createElement('div');
+    d.className = 'hm-file';
+    d.style.cssText = `width:${size}px;height:${size}px;background:${tierColor(f.tier)};opacity:.75;color:#000;font-weight:700;`;
+    d.textContent = (f.filename || '').split('/').pop().replace('.py','');
+    d.addEventListener('mouseenter', e => showTooltip(e, f));
+    d.addEventListener('mousemove',  e => moveTooltip(e));
+    d.addEventListener('mouseleave', hideTooltip);
+    el.appendChild(d);
+  });
+}
+
+const tt = document.getElementById('tooltip');
+function showTooltip(e, f) {
+  document.getElementById('tt-name').textContent  = f.filename || '—';
+  document.getElementById('tt-score').textContent = f.risk_score ?? '—';
+  document.getElementById('tt-cc').textContent    = f.cyclomatic_complexity ?? '—';
+  document.getElementById('tt-loc').textContent   = f.loc ?? '—';
+  document.getElementById('tt-churn').textContent = f.churn_rate ?? '—';
+  document.getElementById('tt-tdc').textContent   = '$' + (f.tdc || 0).toFixed(2);
+  tt.classList.add('visible');
+  moveTooltip(e);
+}
+function moveTooltip(e) {
+  tt.style.left = (e.clientX + 14) + 'px';
+  tt.style.top  = (e.clientY - 10) + 'px';
+}
+function hideTooltip() { tt.classList.remove('visible'); }
+
+// ─── FILE TABLE ───────────────────────────────────────────
+function filterFiles(tier, btn) {
+  state.filter = tier;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFileTable();
+}
+
+function sortTable(key) {
+  if (state.sortKey === key) state.sortAsc = !state.sortAsc;
+  else { state.sortKey = key; state.sortAsc = false; }
+  renderFileTable();
+}
+
+function renderFileTable() {
+  const tbody = document.getElementById('file-table-body');
+  let files = state.files.filter(f => state.filter === 'all' || f.tier === state.filter);
+
+  files.sort((a,b) => {
+    let va = a[state.sortKey] ?? 0, vb = b[state.sortKey] ?? 0;
+    if (typeof va === 'string') return state.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    return state.sortAsc ? va - vb : vb - va;
+  });
+
+  if (!files.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">📂</div><p>No files in this tier</p></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = files.map(f => {
+    const pct = f.risk_score ?? 0;
+    const col = tierColor(f.tier);
+    const hotspot = f.is_hotspot ? '<span class="badge badge-hotspot">🔥 Hotspot</span>' : '';
+    return `<tr>
+      <td style="color:var(--accent);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.filename}">${(f.filename||'').split('/').pop()}${hotspot}</td>
+      <td>
+        <div class="score-bar-wrap">
+          <span style="color:${col};font-weight:700">${pct}</span>
+          <div class="score-bar"><div class="score-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+        </div>
+      </td>
+      <td><span class="badge badge-${f.tier}">${f.tier.toUpperCase()}</span></td>
+      <td>${f.cyclomatic_complexity ?? '—'}</td>
+      <td>${f.loc ?? '—'}</td>
+      <td>${f.churn_rate ?? '—'}</td>
+      <td style="color:var(--warn)">$${(f.tdc||0).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── ROADMAP ─────────────────────────────────────────────
+function renderRoadmap() {
+  const el = document.getElementById('roadmap-list');
+  if (!state.files.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🗺</div><p>No data</p></div>';
+    return;
+  }
+  // sort by effort-to-impact: tdc desc, then risk_score desc
+  const ranked = [...state.files]
+    .filter(f => f.tier === 'critical' || f.tier === 'high' || f.tier === 'moderate')
+    .sort((a,b) => (b.tdc||0) - (a.tdc||0) || (b.risk_score||0) - (a.risk_score||0));
+
+  if (!ranked.length) {
+    el.innerHTML = '<div class="empty" style="background:var(--panel);border-radius:8px;border:1px solid var(--border)"><div class="empty-icon">✅</div><p>No moderate or higher risk files found.</p></div>';
+    return;
+  }
+
+  el.innerHTML = ranked.map((f,i) => `
+    <div class="roadmap-item">
+      <div class="roadmap-rank">#${i+1}</div>
+      <div class="roadmap-info">
+        <div class="roadmap-filename">${f.filename}</div>
+        <div class="roadmap-meta">
+          Risk: <strong style="color:${tierColor(f.tier)}">${f.risk_score}</strong> &nbsp;·&nbsp;
+          CC: ${f.cyclomatic_complexity ?? '—'} &nbsp;·&nbsp;
+          LoC: ${f.loc ?? '—'}
+          ${f.is_hotspot ? ' &nbsp;·&nbsp; 🔥 Hotspot' : ''}
+        </div>
+      </div>
+      <div>
+        <button class="roadmap-action" onclick='fetchRefactorPlan(${JSON.stringify(f.filename)})'>Get refactor plan</button>
+      </div>
+      <div class="roadmap-tdc">$${(f.tdc||0).toFixed(2)}/yr</div>
+      <span class="badge badge-${f.tier}">${f.tier.toUpperCase()}</span>
+    </div>
+  `).join('');
+
+  renderRefactorPlan();
+}
+
+// ─── FINANCIAL ────────────────────────────────────────────
+function calcFileTDC(score) {
+  return ((score||0) / 100) * state.hourlyRate * state.remHours;
+}
+function calcTotalTDC() {
+  return state.files.reduce((s,f) => s + (f.tdc||0), 0);
+}
+
+function recalcTDC() {
+  state.hourlyRate = +document.getElementById('hourly-rate').value;
+  state.remHours   = +document.getElementById('rem-hours').value;
+  document.getElementById('hourly-rate-val').textContent = '$' + state.hourlyRate;
+  document.getElementById('rem-hours-val').textContent   = state.remHours + ' hrs';
+  state.files = state.files.map(f => ({ ...f, tdc: calcFileTDC(f.risk_score) }));
+  renderFinancial();
+  renderRoadmap();
+  renderFileTable();
+  document.getElementById('kpi-tdc').textContent = state.files.length ? '$' + calcTotalTDC().toFixed(0) : '—';
+}
+
+function renderRefactorPlan() {
+  const container = document.getElementById('refactor-plan-container');
+  if (!container) return;
+  if (state.refactorStatus) {
+    container.innerHTML = `<div class="roadmap-message">${state.refactorStatus}</div>`;
+    return;
+  }
+  if (state.refactorPlan) {
+    container.innerHTML = `
+      <div class="section-title">Refactor Plan for ${state.refactorPlan.filename}</div>
+      <div class="roadmap-results">${state.refactorPlan.refactoring_plan || 'No plan available.'}</div>
+    `;
+    return;
+  }
+  container.innerHTML = '<div class="roadmap-message">Select a moderate, high, or critical risk file and click "Get refactor plan" to generate a CodeLlama-based suggestion.</div>';
+}
+
+async function fetchRefactorPlan(filename) {
+  if (!filename) return;
+  state.refactorStatus = `Fetching CodeLlama plan for ${filename}…`;
+  state.refactorPlan = null;
+  renderRefactorPlan();
+
+  try {
+    const r = await fetch(`${backendUrl()}/refactor/${encodeURIComponent(filename)}`);
+    const data = await r.json();
+    if (!r.ok) {
+      state.refactorStatus = `Unable to get refactor plan: ${data.detail || r.status}`;
+      state.refactorPlan = null;
+    } else {
+      state.refactorStatus = '';
+      state.refactorPlan = data;
+    }
+  } catch (err) {
+    state.refactorStatus = `Request failed: ${err.message}`;
+    state.refactorPlan = null;
+  }
+  renderRefactorPlan();
+}
+
+function renderFinancial() {
+  if (!state.files.length) return;
+  const total   = calcTotalTDC();
+  const avg     = total / state.files.length;
+  const top5    = [...state.files].sort((a,b) => b.tdc - a.tdc).slice(0,5);
+  const savings = top5.reduce((s,f) => s + f.tdc, 0);
+  const top10   = [...state.files].sort((a,b) => b.tdc - a.tdc).slice(0,10);
+
+  document.getElementById('fin-total').textContent   = '$' + total.toFixed(2);
+  document.getElementById('fin-avg').textContent     = '$' + avg.toFixed(2);
+  document.getElementById('fin-savings').textContent = '$' + savings.toFixed(2);
+
+  document.getElementById('fin-table-body').innerHTML = top10.map((f,i) => `
+    <tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="color:var(--accent);font-size:.72rem">${(f.filename||'').split('/').pop()}</td>
+      <td style="color:${tierColor(f.tier)}">${f.risk_score}</td>
+      <td style="color:var(--warn);font-weight:700">$${f.tdc.toFixed(2)}</td>
+      <td><span class="badge badge-${f.tier}">${f.tier.toUpperCase()}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ─── DEMO DATA (remove once real API returns file details) ─
+function loadDemoData() {
+  const demo = [
+    { filename: 'backend/services/analyzer.py',    risk_score: 82, cyclomatic_complexity: 18, loc: 320, churn_rate: 12, is_hotspot: true },
+    { filename: 'backend/routers/analysis.py',     risk_score: 61, cyclomatic_complexity: 9,  loc: 90,  churn_rate: 7,  is_hotspot: false },
+    { filename: 'backend/services/risk_scorer.py', risk_score: 74, cyclomatic_complexity: 14, loc: 210, churn_rate: 9,  is_hotspot: true },
+    { filename: 'backend/routers/auth.py',         risk_score: 38, cyclomatic_complexity: 6,  loc: 130, churn_rate: 3,  is_hotspot: false },
+    { filename: 'backend/routers/reports.py',      risk_score: 22, cyclomatic_complexity: 3,  loc: 55,  churn_rate: 2,  is_hotspot: false },
+    { filename: 'database/database.py',            risk_score: 45, cyclomatic_complexity: 7,  loc: 110, churn_rate: 5,  is_hotspot: false },
+    { filename: 'main.py',                         risk_score: 15, cyclomatic_complexity: 2,  loc: 30,  churn_rate: 4,  is_hotspot: false },
+  ];
+  loadFileData(demo);
+  document.getElementById('kpi-total').textContent = demo.length;
+  document.getElementById('kpi-health').textContent = '58';
+  const ring = document.getElementById('health-ring');
+  ring.style.strokeDashoffset = 213.6 - (58/100)*213.6;
+  ring.style.stroke = 'var(--moderate)';
+  document.getElementById('kpi-health').style.color = 'var(--moderate)';
+  document.getElementById('kpi-health-label').textContent = 'Needs Attention';
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+pingBackend();
+loadLatestReport();
+</script>
+</body>
+</html>

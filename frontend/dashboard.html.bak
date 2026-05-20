@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI-Sentinel — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #080b10;
+      --panel: #111822;
+      --surface: #0d1117;
+      --border: #1e2d40;
+      --accent: #00d4ff;
+      --accent2: #ff4d6d;
+      --accent3: #39ff8f;
+      --warn: #ffb830;
+      --text: #e2eaf4;
+      --muted: #5a7a99;
+      --critical: #ff4d6d;
+      --high: #ff8c42;
+      --moderate: #ffb830;
+      --low: #39ff8f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Syne', sans-serif;
+      background: radial-gradient(circle at top, rgba(0,212,255,0.08), transparent 22%),
+                  linear-gradient(180deg, #090c11 0%, #080b10 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 42px 42px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 28px;
+      background: rgba(9,12,16,0.96);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 0.14em;
+      font-size: 0.95rem;
+      color: var(--accent);
+    }
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 16px rgba(0,212,255,0.35);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .backend-indicator {
+      font-family: 'Space Mono', monospace;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .backend-indicator.connected { border-color: var(--accent3); color: var(--accent3); }
+    .backend-indicator.offline { border-color: var(--accent2); color: var(--accent2); }
+    .backend-input {
+      width: 240px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: 'Space Mono', monospace;
+      color: var(--text);
+      background: rgba(255,255,255,0.02);
+    }
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1350px;
+      margin: 24px auto 40px;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .page-header h1 {
+      font-size: clamp(1.9rem, 2.4vw, 2.6rem);
+      line-height: 1;
+      font-weight: 800;
+      background: linear-gradient(135deg, #e2eaf4, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .page-header p {
+      color: var(--muted);
+      max-width: 520px;
+      font-size: 0.92rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 8px;
+    }
+    .tab-button {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.02);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s ease;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .tab-button.active {
+      color: var(--text);
+      background: var(--accent3);
+      border-color: rgba(57,255,143,0.35);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .upload-card {
+      display: grid;
+      gap: 18px;
+    }
+    .drop-zone {
+      position: relative;
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      text-align: center;
+      background: rgba(255,255,255,0.02);
+      transition: border-color .2s, background .2s;
+    }
+    .drop-zone.dragging {
+      background: rgba(0,212,255,0.08);
+      border-color: var(--accent);
+    }
+    .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-zone .icon { font-size: 2.4rem; margin-bottom: 14px; }
+    .drop-zone h2 { font-size: 1.05rem; margin-bottom: 8px; }
+    .drop-zone p { color: var(--muted); line-height: 1.6; }
+    .action-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+    .action-row .file-name {
+      font-family: 'Space Mono', monospace;
+      color: var(--accent3);
+      background: rgba(57,255,143,0.08);
+      border: 1px solid rgba(57,255,143,0.18);
+      padding: 10px 14px;
+      border-radius: 12px;
+      min-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .status-bar {
+      padding: 14px 18px;
+      border-radius: 14px;
+      background: rgba(0,212,255,0.08);
+      border-left: 4px solid var(--accent);
+      color: var(--accent);
+      font-family: 'Space Mono', monospace;
+      display: none;
+    }
+    .status-bar.visible { display: block; }
+    .status-bar.error { background: rgba(255,77,109,0.12); border-color: var(--accent2); color: var(--accent2); }
+    .status-bar.success { background: rgba(57,255,143,0.12); border-color: var(--accent3); color: var(--accent3); }
+    .progress {
+      height: 6px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      transition: width .3s ease;
+    }
+    .grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 18px;
+    }
+    .stats-card {
+      padding: 20px;
+      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .stats-card .label { font-size: .72rem; text-transform: uppercase; letter-spacing:.12em; color: var(--muted); margin-bottom: 10px; }
+    .stats-card .value { font-family: 'Space Mono', monospace; font-size: 2rem; font-weight: 800; color: var(--text); }
+    .stats-card .help { color: var(--muted); margin-top: 8px; font-size: .8rem; }
+    .health-ring { display: flex; align-items: center; gap: 16px; }
+    .ring-svg { width: 82px; height: 82px; }
+    .ring-bg { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 7; }
+    .ring-fg { fill: none; stroke-width: 7; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset .7s ease, stroke .4s ease; }
+    .grid-2 { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 18px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+    }
+    .panel h3 { margin-bottom: 16px; font-size: 1rem; letter-spacing:.03em; }
+    .heatmap { min-height: 140px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .heat-tile {
+      width: 88px;
+      min-height: 56px;
+      border-radius: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Space Mono', monospace;
+      font-size: .72rem;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .heat-tile:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+    .tooltip {
+      position: fixed;
+      z-index: 20;
+      max-width: 240px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(10,13,19,0.96);
+      border: 1px solid rgba(255,255,255,0.08);
+      pointer-events: none;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: .78rem;
+      display: none;
+    }
+    .tooltip strong { color: var(--accent3); }
+    .table-wrap {
+      overflow-x: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+    th, td {
+      padding: 14px 16px;
+      font-family: 'Space Mono', monospace;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-size: .72rem;
+      letter-spacing:.08em;
+      cursor: pointer;
+    }
+    td { color: var(--text); }
+    tr:hover td { background: rgba(0,212,255,0.05); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing:.06em;
+    }
+    .badge-critical { color: var(--critical); background: rgba(255,77,109,0.12); }
+    .badge-high { color: var(--high); background: rgba(255,140,66,0.12); }
+    .badge-moderate { color: var(--moderate); background: rgba(255,184,48,0.12); }
+    .badge-low { color: var(--low); background: rgba(57,255,143,0.12); }
+    .badge-hot { color: var(--accent); background: rgba(0,212,255,0.12); }
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    .filter-pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s ease;
+      font-family: 'Space Mono', monospace;
+      font-size: .78rem;
+    }
+    .filter-pill.active { background: var(--accent); color: #000; border-color: rgba(0,212,255,0.25); }
+    .roadmap-list { display: grid; gap: 14px; }
+    .roadmap-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 20px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+    }
+    .roadmap-rank {
+      font-family: 'Space Mono', monospace;
+      color: var(--accent);
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+    .roadmap-meta { font-size: .82rem; color: var(--muted); margin-top: 6px; }
+    .roadmap-title { font-family: 'Space Mono', monospace; font-size: .92rem; color: var(--text); }
+    .finance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .finance-card {
+      border-radius: 18px;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .finance-card .label { font-size: .72rem; color: var(--muted); margin-bottom: 10px; }
+    .finance-card .value { font-family: 'Space Mono', monospace; font-size: 1.8rem; font-weight: 800; }
+    .slider-row { display: grid; grid-template-columns: 140px 1fr auto; gap: 12px; align-items: center; margin-bottom: 18px; }
+    input[type=range] {
+      -webkit-appearance: none;
+      height: 6px;
+      background: var(--border);
+      border-radius: 999px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #081014;
+      cursor: pointer;
+    }
+    .slider-value { font-family: 'Space Mono', monospace; color: var(--text); }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .empty-state .icon { display: block; font-size: 2.4rem; margin-bottom: 14px; }
+    @media(max-width: 980px) {
+      .grid-5 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .grid-2 { grid-template-columns: 1fr; }
+      .tabs { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .roadmap-item { grid-template-columns: 1fr; }
+    }
+    @media(max-width: 640px) {
+      main { padding: 0 16px; }
+      header { padding: 14px 16px; }
+      .backend-input { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tooltip" id="tooltip"></div>
+
+  <header>
+    <div class="brand">
+      <span class="brand-dot"></span>
+      AI-SENTINEL
+    </div>
+    <div class="header-actions">
+      <span class="backend-indicator" id="backend-status" title="Click to ping backend">CONNECTING…</span>
+      <input id="backend-url" class="backend-input" type="text" value="http://127.0.0.1:8000" />
+    </div>
+  </header>
+
+  <main>
+    <section class="page-header">
+      <div>
+        <h1>AI-Sentinel Dashboard</h1>
+        <p>Upload a repository, inspect code risk, visualize hotspots, and review remediation cost.</p>
+      </div>
+      <button class="btn btn-outline" id="refresh-button">Refresh report</button>
+    </section>
+
+    <section class="card">
+      <div class="tabs">
+        <button class="tab-button active" data-tab="upload">Upload</button>
+        <button class="tab-button" data-tab="dashboard">Dashboard</button>
+        <button class="tab-button" data-tab="roadmap">Roadmap</button>
+        <button class="tab-button" data-tab="finance">Financials</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-upload">
+        <div class="upload-card">
+          <div class="drop-zone" id="upload-box">
+            <input id="file-input" type="file" accept=".zip" />
+            <div class="icon">📦</div>
+            <h2>Drop a .zip repo or click to choose</h2>
+            <p>The backend will receive the archive and queue analysis.</p>
+          </div>
+          <div class="action-row">
+            <div class="file-name" id="file-name">No file selected</div>
+            <button class="btn btn-primary" id="upload-button" disabled>Analyze repository</button>
+          </div>
+          <div class="progress">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="status-bar" id="status-bar"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-dashboard">
+        <div class="grid-5">
+          <div class="stats-card">
+            <div class="label">Project health</div>
+            <div class="health-ring">
+              <svg class="ring-svg" viewBox="0 0 88 88">
+                <circle class="ring-bg" cx="44" cy="44" r="34"/>
+                <circle class="ring-fg" id="health-arc" cx="44" cy="44" r="34"
+                        stroke="var(--accent3)" stroke-dasharray="214" stroke-dashoffset="214"/>
+              </svg>
+              <div>
+                <div class="value" id="health-value">—</div>
+                <div class="help" id="health-label">Awaiting data</div>
+              </div>
+            </div>
+          </div>
+          <div class="stats-card">
+            <div class="label">Critical files</div>
+            <div class="value" id="critical-count">—</div>
+            <div class="help">Score ≥ 75</div>
+          </div>
+          <div class="stats-card">
+            <div class="label">High risk files</div>
+            <div class="value" id="high-count">—</div>
+            <div class="help">Score 50–74</div>
+          </div>
+          <div class="stats-card">
+            <div class="label">Total files</div>
+            <div class="value" id="total-files">—</div>
+            <div class="help">Analyzed Python files</div>
+          </div>
+          <div class="stats-card">
+            <div class="label">Debt estimate</div>
+            <div class="value" id="debt-total">—</div>
+            <div class="help">Annual estimated USD</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Risk heatmap</h3>
+            <div class="heatmap" id="heatmap">
+              <div class="empty-state">
+                <span class="icon">🗺</span>
+                <div>Upload a repo to see risk hotspots</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Latest analysis</h3>
+            <div class="report-meta" id="report-meta"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="filters" id="filter-group">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="critical">Critical</button>
+            <button class="filter-pill" data-filter="high">High</button>
+            <button class="filter-pill" data-filter="moderate">Moderate</button>
+            <button class="filter-pill" data-filter="low">Low</button>
+          </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-key="filename">File</th>
+                    <th data-key="risk_score">Risk</th>
+                    <th data-key="tier">Tier</th>
+                    <th data-key="cyclomatic_complexity">CC</th>
+                    <th data-key="loc">LoC</th>
+                    <th data-key="churn_rate">Churn</th>
+                    <th data-key="tdc">TDC/yr</th>
+                  </tr>
+                </thead>
+                <tbody id="file-table">
+                  <tr><td colspan="7" class="empty-state">No file data yet</td></tr>
+                </tbody>
+              </table>
+            </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-roadmap">
+        <div class="panel">
+          <h3>Refactoring roadmap</h3>
+          <div class="roadmap-list" id="roadmap-list">
+            <div class="empty-state">
+              <span class="icon">🚧</span>
+              <div>Run analysis to generate a prioritized roadmap.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-finance">
+        <div class="panel">
+          <h3>Financial model</h3>
+          <div class="slider-row">
+            <label>Hourly rate</label>
+            <input id="hourly-rate" type="range" min="25" max="250" value="95"/>
+            <span class="slider-value" id="hourly-value">$95</span>
+          </div>
+          <div class="slider-row">
+            <label>Remediation hrs</label>
+            <input id="remediation-hours" type="range" min="1" max="64" value="10"/>
+            <span class="slider-value" id="hours-value">10 hrs</span>
+          </div>
+          <p style="color: var(--muted); font-size:.82rem; margin-bottom:18px;">
+            Estimate annual remediation cost using risk-weighted work hours.
+          </p>
+          <div class="finance-grid">
+            <div class="finance-card">
+              <div class="label">Estimated total</div>
+              <div class="value" id="finance-total">—</div>
+            </div>
+            <div class="finance-card">
+              <div class="label">Average per file</div>
+              <div class="value" id="finance-average">—</div>
+            </div>
+            <div class="finance-card">
+              <div class="label">Top 5 savings</div>
+              <div class="value" id="finance-savings">—</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th><th>File</th><th>Risk</th><th>Annual TDC</th><th>Tier</th>
+                </tr>
+              </thead>
+              <tbody id="finance-table">
+                <tr><td colspan="5" class="empty-state">No financial data available</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      backend: 'http://127.0.0.1:8000',
+      files: [],
+      run: null,
+      filter: 'all',
+      sortKey: 'risk_score',
+      sortAsc: false,
+      hourlyRate: 95,
+      remediationHours: 10
+    };
+
+    const els = {};
+    function $(id) { return document.getElementById(id); }
+
+    function updateBackendStatus(status, connected = false) {
+      const badge = $('backend-status');
+      badge.textContent = status;
+      badge.className = 'backend-indicator' + (connected ? ' connected' : status === 'OFFLINE' ? ' offline' : '');
+    }
+
+    function backendUrl() {
+      const url = $('backend-url').value.trim();
+      return url ? url.replace(/\/+$/, '') : state.backend;
+    }
+
+    async function pingBackend() {
+      updateBackendStatus('CONNECTING…');
+      try {
+        const response = await fetch(`${backendUrl()}/`);
+        if (response.ok) {
+          updateBackendStatus('CONNECTED', true);
+          return true;
+        }
+      } catch {}
+      updateBackendStatus('OFFLINE');
+      return false;
+    }
+
+    function setStatus(message, variant = 'neutral') {
+      const status = $('status-bar');
+      status.textContent = message;
+      status.className = `status-bar visible${variant === 'error' ? ' error' : variant === 'success' ? ' success' : ''}`;
+    }
+
+    function setProgress(value) {
+      $('progress-fill').style.width = `${value}%`;
+    }
+
+    function clearStatus() {
+      $('status-bar').className = 'status-bar';
+      $('status-bar').textContent = '';
+    }
+
+    function setUploadEnabled(enabled) {
+      $('upload-button').disabled = !enabled;
+    }
+
+    function activateTab(tabId) {
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${tabId}`));
+    }
+
+    function formatMoney(value) {
+      return `$${Number(value).toFixed(2)}`;
+    }
+
+    function getTier(score) {
+      if (score >= 75) return 'critical';
+      if (score >= 50) return 'high';
+      if (score >= 25) return 'moderate';
+      return 'low';
+    }
+
+    function renderTooltip(event, file) {
+      const tooltip = $('tooltip');
+      tooltip.style.left = `${event.pageX + 18}px`;
+      tooltip.style.top = `${event.pageY + 14}px`;
+      tooltip.innerHTML = `
+        <strong>${file.filename}</strong><br/>
+        Risk: ${file.risk_score} · Tier: ${file.tier.toUpperCase()}<br/>
+        CC: ${file.cyclomatic_complexity || '—'} · LoC: ${file.loc || '—'}<br/>
+        Churn: ${file.churn_rate || '—'} · TDC: ${formatMoney(file.tdc)}
+      `;
+      tooltip.style.display = 'block';
+    }
+
+    function hideTooltip() {
+      $('tooltip').style.display = 'none';
+    }
+
+    function drawHeatmap() {
+      const heatmap = $('heatmap');
+      if (!state.files.length) {
+        heatmap.innerHTML = `<div class="empty-state"><span class="icon">🗺</span><div>No file data yet.</div></div>`;
+        return;
+      }
+      const maxLoc = Math.max(...state.files.map(f => f.loc || 1));
+      heatmap.innerHTML = '';
+      state.files.forEach(file => {
+        const tile = document.createElement('div');
+        tile.className = 'heat-tile';
+        const scale = 1 + ((file.loc || 0) / maxLoc) * 0.65;
+        tile.style.transform = `scale(${scale})`;
+        tile.style.background = file.tier === 'critical'
+          ? 'rgba(255,77,109,0.15)'
+          : file.tier === 'high'
+            ? 'rgba(255,140,66,0.15)'
+            : file.tier === 'moderate'
+              ? 'rgba(255,184,48,0.14)'
+              : 'rgba(57,255,143,0.12)';
+        tile.style.color = '#fff';
+        tile.textContent = file.filename.split('/').pop();
+        tile.addEventListener('mouseenter', e => renderTooltip(e, file));
+        tile.addEventListener('mousemove', e => renderTooltip(e, file));
+        tile.addEventListener('mouseleave', hideTooltip);
+        heatmap.appendChild(tile);
+      });
+    }
+
+    function renderReportSummary() {
+      const meta = $('report-meta');
+      if (!state.run) {
+        meta.innerHTML = `<div class="empty-state"><span class="icon">⌛</span><div>Analysis summary will appear here.</div></div>`;
+        return;
+      }
+      meta.innerHTML = `
+        <div class="label">Run ID</div><div>${state.run.id}</div>
+        <div class="label">Repo</div><div>${state.run.repo_name}</div>
+        <div class="label">Created</div><div>${new Date(state.run.created_at).toLocaleString()}</div>
+        <div class="label">Health</div><div>${state.run.health_score ?? '—'}</div>
+      `;
+    }
+
+    function renderTable() {
+      const body = $('file-table');
+      const files = state.files
+        .filter(f => state.filter === 'all' || f.tier === state.filter)
+        .sort((a,b) => {
+          const aVal = a[state.sortKey] ?? 0;
+          const bVal = b[state.sortKey] ?? 0;
+          if (typeof aVal === 'string') return state.sortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+          return state.sortAsc ? aVal - bVal : bVal - aVal;
+        });
+      if (!files.length) {
+        body.innerHTML = `<tr><td colspan="7" class="empty-state">No files match this filter.</td></tr>`;
+        return;
+      }
+      body.innerHTML = files.map(file => `
+        <tr>
+          <td>${file.filename}</td>
+          <td>${file.risk_score}</td>
+          <td><span class="badge badge-${file.tier}">${file.tier.toUpperCase()}</span></td>
+          <td>${file.cyclomatic_complexity || '—'}</td>
+          <td>${file.loc || '—'}</td>
+          <td>${file.churn_rate || '—'}</td>
+          <td>${formatMoney(file.tdc)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderRoadmap() {
+      const list = $('roadmap-list');
+      const priority = [...state.files]
+        .filter(f => ['critical','high'].includes(f.tier))
+        .sort((a,b) => (b.tdc || 0) - (a.tdc || 0));
+      if (!priority.length) {
+        list.innerHTML = `<div class="empty-state"><span class="icon">✅</span><div>No high-priority files detected yet.</div></div>`;
+        return;
+      }
+      list.innerHTML = priority.map((file,index) => `
+        <div class="roadmap-item">
+          <div class="roadmap-rank">${index+1}</div>
+          <div>
+            <div class="roadmap-title">${file.filename}</div>
+            <div class="roadmap-meta">Risk ${file.risk_score} · CC ${file.cyclomatic_complexity || '—'} · LoC ${file.loc || '—'}</div>
+          </div>
+          <div>
+            <div class="roadmap-meta">${formatMoney(file.tdc)}</div>
+            <span class="badge badge-${file.tier}">${file.tier.toUpperCase()}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderFinancial() {
+      const total = state.files.reduce((sum,file) => sum + (file.tdc || 0), 0);
+      const avg = state.files.length ? total / state.files.length : 0;
+      const top5 = [...state.files].sort((a,b) => (b.tdc || 0) - (a.tdc || 0)).slice(0,5);
+      $('finance-total').textContent = formatMoney(total);
+      $('finance-average').textContent = formatMoney(avg);
+      $('finance-savings').textContent = formatMoney(top5.reduce((sum,file) => sum + (file.tdc || 0), 0));
+      const table = $('finance-table');
+      if (!state.files.length) {
+        table.innerHTML = `<tr><td colspan="5" class="empty-state">No financial rows available.</td></tr>`;
+        return;
+      }
+      table.innerHTML = top5.map((file,index) => `
+        <tr>
+          <td>${index+1}</td>
+          <td>${file.filename.split('/').pop()}</td>
+          <td>${file.risk_score}</td>
+          <td>${formatMoney(file.tdc)}</td>
+          <td><span class="badge badge-${file.tier}">${file.tier.toUpperCase()}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function updateKpis() {
+      const critical = state.files.filter(f => f.tier === 'critical').length;
+      const high = state.files.filter(f => f.tier === 'high').length;
+      const total = state.files.length;
+      const debt = state.files.reduce((sum,file) => sum + (file.tdc || 0), 0);
+      $('critical-count').textContent = critical;
+      $('high-count').textContent = high;
+      $('total-files').textContent = total;
+      $('debt-total').textContent = total ? formatMoney(debt) : '—';
+      const health = state.run?.health_score;
+      if (health != null) {
+        $('health-value').textContent = health;
+        $('health-label').textContent = health >= 75 ? 'Healthy' : health >= 50 ? 'At risk' : 'Critical';
+        const circumference = 214;
+        const offset = circumference - (health / 100) * circumference;
+        $('health-arc').style.strokeDashoffset = offset;
+        $('health-arc').style.stroke = health >= 75 ? 'var(--accent3)' : health >= 50 ? 'var(--warn)' : 'var(--critical)';
+      }
+    }
+
+    function computeFileTdc(score) {
+      return ((score || 0) / 100) * state.hourlyRate * state.remediationHours;
+    }
+
+    function assignFileMetrics(files) {
+      state.files = files.map(item => {
+        const tier = getTier(item.risk_score);
+        return {
+          ...item,
+          tier,
+          tdc: computeFileTdc(item.risk_score)
+        };
+      });
+    }
+
+    async function fetchLatestReport() {
+      if (!await pingBackend()) return;
+      try {
+        const response = await fetch(`${backendUrl()}/reports/latest`);
+        if (!response.ok) throw new Error(response.statusText);
+        const data = await response.json();
+        if (data.message === 'no runs yet') {
+          setStatus('No analysis runs found yet.', 'error');
+          return;
+        }
+        state.run = data.run;
+        const fileRows = data.files || [];
+        assignFileMetrics(fileRows);
+        renderReportSummary();
+        renderHeatmap();
+        renderTable();
+        renderRoadmap();
+        renderFinancial();
+        updateKpis();
+        setStatus('Latest report loaded.', 'success');
+      } catch (error) {
+        setStatus('Unable to fetch latest report.', 'error');
+      }
+    }
+
+    async function uploadRepository() {
+      if (!window.selectedFile) {
+        setStatus('Select a .zip archive first.', 'error');
+        return;
+      }
+      if (!await pingBackend()) return;
+      setStatus('Uploading repository...', 'neutral');
+      setProgress(12);
+      const form = new FormData();
+      form.append('file', window.selectedFile);
+      try {
+        const response = await fetch(`${backendUrl()}/analysis/upload`, {
+          method: 'POST',
+          body: form
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || 'Upload failed');
+        setStatus(`Upload accepted: run ${result.run_id}`, 'success');
+        setProgress(80);
+        await fetchLatestReport();
+        setProgress(100);
+        setTimeout(() => setProgress(0), 400);
+      } catch (error) {
+        setStatus(error.message, 'error');
+        setProgress(0);
+      }
+    }
+
+    function initializeDemoData() {
+      const demo = [
+        { filename: 'backend/routers/auth.py', risk_score: 82, cyclomatic_complexity: 16, loc: 320, churn_rate: 14 },
+        { filename: 'backend/services/analyzer.py', risk_score: 63, cyclomatic_complexity: 10, loc: 180, churn_rate: 9 },
+        { filename: 'backend/routers/reports.py', risk_score: 48, cyclomatic_complexity: 7, loc: 95, churn_rate: 6 },
+        { filename: 'database/database.py', risk_score: 32, cyclomatic_complexity: 5, loc: 120, churn_rate: 3 },
+        { filename: 'main.py', risk_score: 22, cyclomatic_complexity: 3, loc: 45, churn_rate: 2 }
+      ];
+      assignFileMetrics(demo);
+      state.run = { id: 'demo', repo_name: 'demo/project', created_at: new Date().toISOString(), health_score: 61 };
+      renderReportSummary();
+      renderHeatmap();
+      renderTable();
+      renderRoadmap();
+      renderFinancial();
+      updateKpis();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const uploadBox = $('upload-box');
+      const fileInput = $('file-input');
+      const uploadButton = $('upload-button');
+      const refreshButton = $('refresh-button');
+      const backendStatus = $('backend-status');
+      const backendUrlInput = $('backend-url');
+
+      uploadBox.addEventListener('dragover', event => {
+        event.preventDefault();
+        uploadBox.classList.add('dragging');
+      });
+      uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragging'));
+      uploadBox.addEventListener('drop', event => {
+        event.preventDefault();
+        uploadBox.classList.remove('dragging');
+        const file = event.dataTransfer.files[0];
+        if (file && file.name.endsWith('.zip')) {
+          fileInput.files = event.dataTransfer.files;
+          selectedFile = file;
+          $('file-name').textContent = file.name;
+          setUploadEnabled(true);
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (file && file.name.endsWith('.zip')) {
+          selectedFile = file;
+          $('file-name').textContent = file.name;
+          setUploadEnabled(true);
+        }
+      });
+
+      uploadButton.addEventListener('click', uploadRepository);
+      refreshButton.addEventListener('click', fetchLatestReport);
+      backendUrlInput.addEventListener('change', pingBackend);
+      backendStatus.addEventListener('click', pingBackend);
+
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+      });
+
+      document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-filter]').forEach(el => el.classList.remove('active'));
+          btn.classList.add('active');
+          state.filter = btn.dataset.filter;
+          renderTable();
+        });
+      });
+
+      document.querySelectorAll('th[data-key]').forEach(header => {
+        header.addEventListener('click', () => {
+          const key = header.dataset.key;
+          if (state.sortKey === key) state.sortAsc = !state.sortAsc;
+          else { state.sortKey = key; state.sortAsc = false; }
+          renderTable();
+        });
+      });
+
+      $('hourly-rate').addEventListener('input', event => {
+        state.hourlyRate = Number(event.target.value);
+        $('hourly-value').textContent = `$${state.hourlyRate}`;
+        state.files = state.files.map(file => ({ ...file, tdc: computeFileTdc(file.risk_score) }));
+        renderTable();
+        renderRoadmap();
+        renderFinancial();
+        updateKpis();
+      });
+
+      $('remediation-hours').addEventListener('input', event => {
+        state.remediationHours = Number(event.target.value);
+        $('hours-value').textContent = `${state.remediationHours} hrs`;
+        state.files = state.files.map(file => ({ ...file, tdc: computeFileTdc(file.risk_score) }));
+        renderTable();
+        renderRoadmap();
+        renderFinancial();
+        updateKpis();
+      });
+
+      pingBackend();
+      initializeDemoData();
+    });
+  </script>
+</body>
+</html>
