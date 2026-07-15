@@ -1,73 +1,94 @@
--->AI-Sentinel 
+# **AI-Sentinel**
 
-Intelligent Technical Debt & Code Quality Analyzer
+## **Intelligent Technical Debt & Code Quality Analyzer**
 
-This project is actively under development. Core functionality is complete and has been evaluated in an academic setting. Further improvements to accuracy, UI, and pipeline robustness are in progress.
+> **🚧 This project is actively under development.**
+>
+> Core functionality is complete and has been evaluated in an academic setting. Further improvements to accuracy, UI, and pipeline robustness are currently in progress.
 
--->Overview
+---
 
-AI-Sentinel is an AI-powered system designed to identify and quantify technical debt in software codebases — one of the most costly and underdiagnosed problems in the software industry. Research estimates that developers lose approximately 23% of their productive time navigating poorly structured or suboptimal code.
-AI-Sentinel addresses this by combining classical machine learning with large language model reasoning to deliver both risk scores and actionable refactoring suggestions — automatically.
+# **Overview**
 
--->Pipeline
+**AI-Sentinel** is an AI-powered system designed to identify and quantify **technical debt** in software codebases—one of the most costly and underdiagnosed problems in the software industry.
 
-Codebase Input-->
-      
+Research estimates that developers lose approximately **23% of their productive time** navigating poorly structured or suboptimal code.
+
+AI-Sentinel addresses this challenge by combining **classical machine learning** with **large language model (LLM) reasoning** to deliver accurate **risk scores** and **actionable refactoring suggestions** automatically.
+
+---
+
+# **Pipeline**
+
+```text
+Codebase Input
+      │
+      ▼
 Static Code Analysis
-
-(complexity, duplication, coupling, code smells)-->
-      
+(complexity, duplication, coupling, code smells)
+      │
+      ▼
 XGBoost Risk Predictor
-
-(outputs debt risk score per module/file)-->
-      
+(outputs debt risk score per module/file)
+      │
+      ▼
 Refactoring Engine
-
-(generates human-readable improvement suggestions)-->
-      
+(generates human-readable improvement suggestions)
+      │
+      ▼
 Structured Report Output
-
 (flagged files, risk scores, recommendations)
+```
 
+---
 
--->Tech Stack:
+# **Tech Stack**
 
-Backend: Python, FastAPI
+### **Backend**
+- Python
+- FastAPI
 
-Static Analysis: radon, Python ast
+### **Static Analysis**
+- Radon
+- Python AST
 
-ML Model: XGBoost 
+### **Machine Learning**
+- XGBoost
 
-LLM: Ollama + CodeLlama 13B (primary) / DeepSeek-Coder 6.7B (lightweight alternative)
+### **Large Language Models**
+- Ollama
+- CodeLlama 13B *(Primary)*
+- DeepSeek-Coder 6.7B *(Lightweight Alternative)*
 
-Frontend: Gradio (demo), D3.js (heatmap)
+### **Frontend**
+- Gradio *(Demo Interface)*
+- D3.js *(Risk Heatmap Visualization)*
 
-Database: SQLite (dev) / PostgreSQL (production)
+### **Database**
+- SQLite *(Development)*
+- PostgreSQL *(Production)*
 
-CI/CD: GitHub Actions 
+### **CI/CD**
+- GitHub Actions
 
-Security Data: NIST NVD REST API 
+### **Security Intelligence**
+- NIST NVD REST API
 
--->Features
+---
 
-Automated code scanning — analyzes entire codebases for quality issues
+# **Features**
 
-Risk scoring — quantifies technical debt per file and module using ML
+-  **Automated Code Scanning** — Analyzes entire codebases for quality issues.
+-  **Risk Scoring** — Quantifies technical debt for each file and module using machine learning.
+-  **LLM-Powered Refactoring Suggestions** — Generates clear, actionable code improvement recommendations.
+-  **Structured Reporting** — Produces clean and readable reports for engineering teams.
+-  **Industry-Oriented Design** — Built for real-world software projects, not toy examples.
 
-LLM-powered suggestions — generates specific, actionable refactoring guidance
+---
 
-Structured reporting — outputs findings in a clean, readable format for engineering teams
+# **Use Cases**
 
-Industry-oriented — designed for real codebases, not toy examples
-
--->Use Cases
-
-Engineering teams managing large or legacy codebases
-
-Code review automation and pre-merge quality checks
-
-Academic and research evaluation of software quality metrics
-
-Developer productivity tooling
-
-
+- Engineering teams managing large or legacy codebases
+- Code review automation and pre-merge quality checks
+- Academic research on software quality metrics
+- Developer productivity and technical debt management
